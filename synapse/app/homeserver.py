@@ -65,6 +65,7 @@ from synapse.rest import ClientRestResource
 from synapse.rest.admin import AdminRestResource
 from synapse.rest.health import HealthResource
 from synapse.rest.key.v2 import KeyResource
+from synapse.rest.scim import HAS_SCIM2, SCIM_PREFIX, SCIMResource
 from synapse.rest.synapse.client import build_synapse_client_resource_tree
 from synapse.rest.well_known import well_known_resource
 from synapse.server import HomeServer
@@ -179,6 +180,9 @@ class SynapseHomeServer(HomeServer):
             client_resource: Resource = ClientRestResource(self)
             if compress:
                 client_resource = gz_wrap(client_resource)
+
+            if HAS_SCIM2:
+                resources[SCIM_PREFIX] = SCIMResource(self)
 
             resources.update(
                 {
