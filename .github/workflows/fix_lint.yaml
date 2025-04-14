@@ -25,7 +25,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Setup Poetry
-        uses: matrix-org/setup-python-poetry@v1
+        uses: matrix-org/setup-python-poetry@v2
         with:
           install-project: "false"
 
