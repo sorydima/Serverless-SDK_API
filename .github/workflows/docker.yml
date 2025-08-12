@@ -33,7 +33,7 @@ jobs:
         uses: sigstore/cosign-installer@v3.9.2
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Extract version from pyproject.toml
         # Note: explicitly requesting bash will mean bash is invoked with `-eo pipefail`, see
