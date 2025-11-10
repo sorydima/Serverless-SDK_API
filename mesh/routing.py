@@ -10,6 +10,16 @@ from typing import Dict, List, Optional, Set, Tuple
 import logging
 import time
 
+# Optional quantum optimizer import
+try:
+    from ..ai.ai_quantum_core import QuantumPacketOptimizer, RoutingConstraints, RoutingPath
+    _HAS_QUANTUM_OPTIMIZER = True
+except ImportError:
+    _HAS_QUANTUM_OPTIMIZER = False
+    QuantumPacketOptimizer = None
+    RoutingConstraints = None
+    RoutingPath = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,12 +29,23 @@ class MeshRouter:
     Implements various routing algorithms for optimal path finding.
     """
 
-    def __init__(self, device_id: str, max_hops: int = 5):
+    def __init__(self, device_id: str, max_hops: int = 5, use_quantum_optimizer: bool = False):
         self.device_id = device_id
         self.max_hops = max_hops
         self.routing_table: Dict[str, Dict] = {}
         self.neighbors: Set[str] = set()
         self.last_update = time.time()
+        self.use_quantum_optimizer = use_quantum_optimizer and _HAS_QUANTUM_OPTIMIZER
+
+        # Initialize quantum optimizer if available and requested
+        if self.use_quantum_optimizer:
+            from ..ai.ai_quantum_core import DeviceGraph
+            self.device_graph = DeviceGraph()
+            self.quantum_optimizer = QuantumPacketOptimizer(self.device_graph)
+            logger.info("Quantum optimizer enabled for mesh routing")
+        else:
+            self.device_graph = None
+            self.quantum_optimizer = None
 
     def add_neighbor(self, neighbor_id: str, connection_quality: float = 1.0):
         """Add a neighboring device to the routing table."""
@@ -35,6 +56,13 @@ class MeshRouter:
             'quality': connection_quality,
             'last_seen': time.time()
         }
+
+        # Update device graph if quantum optimizer is enabled
+        if self.use_quantum_optimizer and self.device_graph:
+            self.device_graph.add_device(neighbor_id, {"type": "router", "quality": connection_quality})
+            self.device_graph.add_device(self.device_id, {"type": "router"})
+            self.device_graph.add_connection(self.device_id, neighbor_id, weight=connection_quality)
+
         logger.info(f"Added neighbor {neighbor_id} to mesh router")
 
     def remove_neighbor(self, neighbor_id: str):
@@ -65,6 +93,24 @@ class MeshRouter:
         if destination == self.device_id:
             return [self.device_id]
 
+        # Try quantum optimization first if available
+        if self.use_quantum_optimizer and self.quantum_optimizer:
+            try:
+                constraints = RoutingConstraints(
+                    max_hops=self.max_hops,
+                    max_latency_ms=100.0,  # Default constraint
+                    min_bandwidth_mbps=1.0
+                )
+                optimized_path = self.quantum_optimizer.optimize_route(
+                    self.device_id, destination, constraints
+                )
+                if optimized_path and optimized_path.nodes:
+                    logger.info(f"Quantum-optimized route found: {optimized_path.nodes}")
+                    return optimized_path.nodes
+            except Exception as e:
+                logger.debug(f"Quantum optimization failed, falling back to classical routing: {e}")
+
+        # Fallback to classical routing
         if destination in self.routing_table:
             route = [self.device_id]
             current = destination
