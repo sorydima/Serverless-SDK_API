@@ -1,0 +1,203 @@
+# GitLab CI/CD Configuration
+# Save as: .gitlab-ci.yml
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  # Use Docker-in-Docker
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  # Cache directories
+  CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
+  CARGO_TARGET_DIR: ${CI_PROJECT_DIR}/target
+  # Python
+  PIP_CACHE_DIR: ${CI_PROJECT_DIR}/.cache/pip
+  # Rust
+  RUSTUP_HOME: ${CI_PROJECT_DIR}/.rustup
+  # Custom cache key for Rust
+  CARGO_CACHE_KEY: ${CI_COMMIT_REF_SLUG}-${CI_JOB_NAME}
+
+# Cache settings for all jobs
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .cache/pip
+    - .cargo/registry
+    - .cargo/git
+    - target/
+    - venv/
+  policy: pull-push
+
+# Default image
+image: rust:1.65
+
+# Services
+services:
+  - docker:20.10.16-dind
+
+# Common before_script for all jobs
+.before_script: &before_script
+  - rustup default stable
+  - rustup target add wasm32-unknown-unknown
+  - python --version
+  - pip --version
+  - pip install -U pip setuptools wheel
+  - pip install -r requirements-dev.txt
+  - cargo --version
+  - rustc --version
+
+# Test job template
+.test_template: &test_template
+  stage: test
+  script:
+    - cargo test --no-fail-fast -- --nocapture
+    - cargo clippy --all-targets --all-features -- -D warnings
+    - cargo fmt --all -- --check
+    - pytest -v tests/
+
+# Build job template
+.build_template: &build_template
+  stage: build
+  script:
+    - cargo build --release --target $TARGET
+    - python setup.py bdist_wheel
+  artifacts:
+    paths:
+      - target/release/*
+      - dist/*.whl
+    expire_in: 1 week
+
+# Jobs for different platforms
+linux:build:
+  <<: *build_template
+  variables:
+    TARGET: x86_64-unknown-linux-gnu
+  tags:
+    - docker
+
+windows:build:
+  <<: *build_template
+  image: mcr.microsoft.com/windows/servercore:ltsc2022
+  variables:
+    TARGET: x86_64-pc-windows-msvc
+  tags:
+    - windows
+  before_script:
+    - choco install -y python --version=3.10.0
+    - refreshenv
+    - rustup default stable-x86_64-pc-windows-msvc
+    - cargo --version
+    - rustc --version
+
+macos:build:
+  <<: *build_template
+  image: macos-12-xcode-13
+  variables:
+    TARGET: x86_64-apple-darwin
+  tags:
+    - macos
+  before_script:
+    - brew update
+    - brew install python@3.10
+    - echo "$(brew --prefix)/opt/python@3.10/libexec/bin" >> $GITHUB_PATH
+    - python3 -m pip install -U pip setuptools wheel
+    - rustup default stable-x86_64-apple-darwin
+
+# Test jobs
+test:linux:
+  <<: *test_template
+  image: rust:1.65
+  tags:
+    - docker
+
+test:windows:
+  <<: *test_template
+  image: mcr.microsoft.com/windows/servercore:ltsc2022
+  tags:
+    - windows
+  before_script:
+    - choco install -y python --version=3.10.0
+    - refreshenv
+    - rustup default stable-x86_64-pc-windows-msvc
+
+test:macos:
+  <<: *test_template
+  image: macos-12-xcode-13
+  tags:
+    - macos
+  before_script:
+    - brew update
+    - brew install python@3.10
+    - echo "$(brew --prefix)/opt/python@3.10/libexec/bin" >> $GITHUB_PATH
+    - python3 -m pip install -U pip setuptools wheel
+    - rustup default stable-x86_64-apple-darwin
+
+# Deployment jobs
+deploy:staging:
+  stage: deploy
+  image: python:3.10-slim
+  script:
+    - pip install twine
+    - twine upload --repository-url $PYPI_STAGING_URL -u $PYPI_STAGING_USER -p $PYPI_STAGING_PASSWORD dist/*
+  only:
+    - develop
+  when: manual
+
+deploy:production:
+  stage: deploy
+  image: python:3.10-slim
+  script:
+    - pip install twine
+    - twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/*
+  only:
+    - tags
+  when: manual
+
+# Documentation job
+docs:
+  stage: deploy
+  image: python:3.10-slim
+  script:
+    - pip install mkdocs mkdocs-material
+    - mkdocs build --site-dir public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+    - develop
+    - /^docs\/.*$/
+
+# Security scanning
+security_scan:
+  stage: test
+  image: rust:1.65
+  script:
+    - cargo install cargo-audit
+    - cargo audit
+    - cargo install --locked cargo-deny
+    - cargo deny check
+  allow_failure: true
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Performance testing
+benchmark:
+  stage: test
+  image: rust:1.65
+  script:
+    - cargo bench --no-run
+    - cargo bench
+  artifacts:
+    paths:
+      - target/criterion/
+  only:
+    - schedules
+    - web
+  tags:
+    - docker

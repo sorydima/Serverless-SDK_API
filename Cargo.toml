@@ -2,5 +2,5 @@
 # commands from the root (rather than having to cd into rust/).
 
 [workspace]
-members = ["rust"]
+members = ["core"]
 resolver = "2"

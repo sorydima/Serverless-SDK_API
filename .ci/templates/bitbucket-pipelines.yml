@@ -1,0 +1,163 @@
+# Bitbucket Pipelines Configuration
+# Save as: bitbucket-pipelines.yml
+
+definitions:
+  caches:
+    pip: ~/.cache/pip
+    cargo: ~/.cargo
+    rustup: ~/.rustup
+
+  steps:
+    - step: &setup-rust
+        name: Setup Rust
+        caches:
+          - cargo
+          - rustup
+        script:
+          - rustup update stable
+          - rustup default stable
+          - rustup target add wasm32-unknown-unknown
+          - rustc --version
+          - cargo --version
+        artifacts:
+          - .cargo/
+          - .rustup/
+
+    - step: &setup-python
+        name: Setup Python
+        caches:
+          - pip
+        script:
+          - python --version
+          - pip install --upgrade pip setuptools wheel
+          - pip install -r requirements-dev.txt
+        artifacts:
+          - .cache/pip/
+
+    - step: &test
+        name: Run Tests
+        caches:
+          - pip
+          - cargo
+        script:
+          - cargo test --no-fail-fast -- --nocapture
+          - cargo clippy --all-targets --all-features -- -D warnings
+          - cargo fmt --all -- --check
+          - pytest -v tests/
+
+    - step: &build
+        name: Build Release
+        caches:
+          - pip
+          - cargo
+        script:
+          - cargo build --release
+          - python setup.py bdist_wheel
+        artifacts:
+          - target/release/**
+          - dist/*.whl
+
+pipelines:
+  default:
+    - parallel:
+        - step: *setup-rust
+        - step: *setup-python
+    - parallel:
+        - step: *test
+        - step: *build
+
+  branches:
+    main:
+      - step: *setup-rust
+      - step: *setup-python
+      - step: *test
+      - step: *build
+      - step:
+          name: Deploy to PyPI
+          script:
+            - pip install twine
+            - twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/*
+          deployment: production
+
+    develop:
+      - step: *setup-rust
+      - step: *setup-python
+      - step: *test
+      - step: *build
+      - step:
+          name: Deploy to TestPyPI
+          script:
+            - pip install twine
+            - twine upload --repository-url https://test.pypi.org/legacy/ -u $TEST_PYPI_USERNAME -p $TEST_PYPI_PASSWORD dist/*
+          deployment: test
+
+  pull-requests:
+    '**':
+      - step: *setup-rust
+      - step: *setup-python
+      - step: *test
+
+  custom:
+    security-scan:
+      - step: *setup-rust
+      - step:
+          name: Security Scan
+          script:
+            - cargo install cargo-audit
+            - cargo audit
+            - cargo install --locked cargo-deny
+            - cargo deny check
+
+    benchmark:
+      - step: *setup-rust
+      - step:
+          name: Run Benchmarks
+          script:
+            - cargo bench --no-run
+            - cargo bench
+          artifacts:
+            - target/criterion/
+
+    docs:
+      - step: *setup-python
+      - step:
+          name: Build Documentation
+          script:
+            - pip install mkdocs mkdocs-material
+            - mkdocs build --site-dir public
+          artifacts:
+            - public/
+
+# Environment variables
+image: rust:1.65
+
+options:
+  docker: true
+  max-time: 60
+
+# Cache configuration
+pipelines:
+  default:
+    - step:
+        caches:
+          - pip
+          - cargo
+          - rustup
+
+# Deployment configurations
+deployments:
+  production:
+    - step:
+        name: Deploy to Production
+        deployment: production
+        script:
+          - echo "Deploying to production..."
+          # Add your deployment commands here
+
+  test:
+    - step:
+        name: Deploy to Staging
+        deployment: test
+        script:
+          - echo "Deploying to staging..."
+          # Add your staging deployment commands here
