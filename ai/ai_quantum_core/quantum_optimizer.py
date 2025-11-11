@@ -467,3 +467,24 @@ if __name__ == "__main__":
               f"{path.reliability_score:.3f} reliability")
     else:
         print("No path found")
+
+    # Test multiple route optimization
+    route_requests = [
+        ("node_0", "node_3", RoutingConstraints(max_hops=4)),
+        ("node_1", "node_7", RoutingConstraints(max_hops=6)),
+        ("node_2", "node_8", RoutingConstraints(max_hops=5))
+    ]
+
+    print("\nOptimizing multiple routes...")
+    results = optimizer.optimize_multiple_routes(route_requests, max_parallel=2)
+
+    for i, path in enumerate(results):
+        if path:
+            print(f"Route {i+1}: {' -> '.join(path.nodes)} "
+                  f"(hops: {path.hop_count}, latency: {path.total_latency:.2f}ms)")
+        else:
+            print(f"Route {i+1}: No path found")
+
+    # Print optimizer stats
+    stats = optimizer.get_optimizer_stats()
+    print(f"\nOptimizer Stats: {stats}")
