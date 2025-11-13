@@ -22,6 +22,14 @@ from collections import defaultdict, deque
 import threading
 import time
 
+# TTS imports
+try:
+    import pyttsx3
+    _HAS_TTS = True
+except ImportError:
+    _HAS_TTS = False
+    pyttsx3 = None
+
 # Optional imports for different model backends
 try:
     import transformers
@@ -414,6 +422,105 @@ class ConversationManager:
             del self.conversations[conversation_id]
             self._save_cache()
 
+class SpeechSynthesis:
+    """Text-to-speech synthesis for the assistant"""
+
+    def __init__(self):
+        self.engine = None
+        self.is_initialized = False
+        self.voice_cache: Dict[str, bytes] = {}
+        self.cache_dir = Path("./cache/tts")
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def initialize(self) -> bool:
+        """Initialize TTS engine"""
+        if not _HAS_TTS:
+            logger.warning("pyttsx3 not available, TTS disabled")
+            return False
+
+        try:
+            self.engine = pyttsx3.init()
+            self.is_initialized = True
+
+            # Configure voice settings
+            voices = self.engine.getProperty('voices')
+            if voices:
+                # Prefer female voice if available
+                female_voice = next((v for v in voices if 'female' in v.name.lower()), None)
+                if female_voice:
+                    self.engine.setProperty('voice', female_voice.id)
+
+            self.engine.setProperty('rate', 180)  # Speed of speech
+            self.engine.setProperty('volume', 0.8)  # Volume level
+
+            logger.info("TTS engine initialized")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to initialize TTS: {e}")
+            return False
+
+    def synthesize_speech(self, text: str, voice_id: str = "default") -> Optional[bytes]:
+        """Synthesize speech from text"""
+        if not self.is_initialized:
+            return None
+
+        try:
+            # Check cache first
+            cache_key = hashlib.md5(f"{text}_{voice_id}".encode()).hexdigest()
+            cache_file = self.cache_dir / f"{cache_key}.wav"
+
+            if cache_file.exists():
+                with open(cache_file, 'rb') as f:
+                    return f.read()
+
+            # Generate speech
+            self.engine.save_to_file(text, str(cache_file))
+            self.engine.runAndWait()
+
+            # Read and cache the audio data
+            if cache_file.exists():
+                with open(cache_file, 'rb') as f:
+                    audio_data = f.read()
+                self.voice_cache[cache_key] = audio_data
+                return audio_data
+
+        except Exception as e:
+            logger.error(f"TTS synthesis failed: {e}")
+            return None
+
+    def get_available_voices(self) -> List[Dict[str, Any]]:
+        """Get list of available voices"""
+        if not self.is_initialized:
+            return []
+
+        try:
+            voices = self.engine.getProperty('voices')
+            return [
+                {
+                    'id': voice.id,
+                    'name': voice.name,
+                    'languages': getattr(voice, 'languages', []),
+                    'gender': getattr(voice, 'gender', None),
+                    'age': getattr(voice, 'age', None)
+                }
+                for voice in voices
+            ]
+        except Exception as e:
+            logger.error(f"Failed to get voices: {e}")
+            return []
+
+    def set_voice(self, voice_id: str) -> bool:
+        """Set the active voice"""
+        if not self.is_initialized:
+            return False
+
+        try:
+            self.engine.setProperty('voice', voice_id)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set voice: {e}")
+            return False
+
 class GenAIAssistant:
     """
     Main GenAI Assistant class providing offline GPT-like capabilities
@@ -424,6 +531,7 @@ class GenAIAssistant:
         self.model = LocalLanguageModel(model_path, model_type)
         self.conversation_manager = ConversationManager()
         self.system_prompt = system_prompt or self._default_system_prompt()
+        self.tts = SpeechSynthesis()
 
         # Assistant capabilities
         self.capabilities = {
@@ -431,7 +539,8 @@ class GenAIAssistant:
             'code_help': True,
             'task_planning': True,
             'offline_operation': True,
-            'context_awareness': True
+            'context_awareness': True,
+            'text_to_speech': _HAS_TTS
         }
 
         # Response cache for performance

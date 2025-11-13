@@ -460,6 +460,28 @@ class CityMeshBridge:
                 'timestamp': datetime.now().isoformat()
             }
 
+            # Carry VIBE/context if present in metadata (optional)
+            try:
+                vibe = data.metadata.get('vibe') if isinstance(data.metadata, dict) else None
+                if vibe is not None:
+                    mesh_message['vibe'] = vibe
+                    # Attempt to persist VIBE snapshot for later analysis
+                    try:
+                        from ai.vibe.persistence import persist_vibe
+                        # If vibe is already a dict, create Vibe object
+                        if isinstance(vibe, dict):
+                            from ai.vibe.vibe import Vibe
+                            vobj = Vibe.from_dict(vibe) if hasattr(Vibe, 'from_dict') else Vibe(level=vibe.get('level', 0.0), tags=vibe.get('tags', {}), timestamp=vibe.get('timestamp'))
+                        else:
+                            vobj = vibe
+                        persist_vibe(vobj)
+                    except Exception:
+                        # Do not fail forwarding on persistence errors
+                        pass
+            except Exception:
+                # Be resilient to malformed metadata
+                pass
+
             # Send via mesh router
             await self.mesh_router.broadcast_message(mesh_message)
 

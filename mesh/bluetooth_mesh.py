@@ -2,7 +2,7 @@
 Bluetooth LE Mesh Networking for Offline Message Transmission
 
 This module implements offline message transmission through Bluetooth LE Advertising
-with Mesh API integration and encryption support.
+with Mesh API integration, encryption support, and voice messaging capabilities.
 """
 
 import asyncio
@@ -17,6 +17,14 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 import os
+try:
+    import audioop
+    _HAS_AUDIOOP = True
+except ImportError:
+    _HAS_AUDIOOP = False
+    audioop = None
+
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +39,7 @@ class BLEMeshMessage:
     timestamp: float
     ttl: int = 64  # Time to live
     hop_count: int = 0
+    message_type: str = 'data'  # 'data', 'voice', 'video', etc.
 
     def to_bytes(self) -> bytes:
         """Serialize message to bytes for BLE advertising."""
@@ -41,8 +50,10 @@ class BLEMeshMessage:
             b'\x00' +
             self.destination_id.encode('utf-8') +
             b'\x00' +
+            self.message_type.encode('utf-8') +
+            b'\x00' +
             self.payload +
-            struct.pack('>dI', self.timestamp, self.ttl)
+            struct.pack('>dII', self.timestamp, self.ttl, self.hop_count)
         )
         return data
 
@@ -50,21 +61,22 @@ class BLEMeshMessage:
     def from_bytes(cls, data: bytes) -> Optional['BLEMeshMessage']:
         """Deserialize message from bytes."""
         try:
-            parts = data.split(b'\x00', 3)
-            if len(parts) < 4:
+            parts = data.split(b'\x00', 4)
+            if len(parts) < 5:
                 return None
 
             message_id = parts[0].decode('utf-8')
             source_id = parts[1].decode('utf-8')
             destination_id = parts[2].decode('utf-8')
+            message_type = parts[3].decode('utf-8')
 
             # Extract payload and metadata
-            remaining = parts[3]
-            if len(remaining) < 12:  # timestamp (8) + ttl (4)
+            remaining = parts[4]
+            if len(remaining) < 16:  # timestamp (8) + ttl (4) + hop_count (4)
                 return None
 
-            payload = remaining[:-12]
-            timestamp, ttl = struct.unpack('>dI', remaining[-12:])
+            payload = remaining[:-16]
+            timestamp, ttl, hop_count = struct.unpack('>dII', remaining[-16:])
 
             return cls(
                 message_id=message_id,
@@ -72,9 +84,107 @@ class BLEMeshMessage:
                 destination_id=destination_id,
                 payload=payload,
                 timestamp=timestamp,
-                ttl=ttl
+                ttl=ttl,
+                hop_count=hop_count,
+                message_type=message_type
             )
         except (UnicodeDecodeError, struct.error):
+            return None
+
+
+@dataclass
+class VoiceMessage:
+    """Represents a voice message with audio data."""
+    message_id: str
+    source_id: str
+    destination_id: str
+    audio_data: bytes
+    sample_rate: int = 16000
+    channels: int = 1
+    timestamp: float = None
+    duration: float = 0.0
+    compression: str = 'none'  # 'none', 'opus', 'speex'
+
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = time.time()
+
+    def compress_audio(self) -> bytes:
+        """Compress audio data for efficient transmission."""
+        if self.compression == 'none':
+            return self.audio_data
+
+        # Simple compression using audioop (reduce sample rate and bit depth)
+        try:
+            if not _HAS_AUDIOOP:
+                logger.warning("audioop not available, skipping compression")
+                return self.audio_data
+
+            # Convert to mono if stereo
+            if self.channels == 2:
+                compressed = audioop.tomono(self.audio_data, 2, 0.5, 0.5)
+            else:
+                compressed = self.audio_data
+
+            # Reduce sample rate if needed
+            if self.sample_rate > 8000:
+                compressed = audioop.ratecv(compressed, 2, 1, self.sample_rate, 8000, None)[0]
+
+            return compressed
+        except Exception as e:
+            logger.error(f"Audio compression failed: {e}")
+            return self.audio_data
+
+    def to_mesh_message(self) -> BLEMeshMessage:
+        """Convert to BLE mesh message."""
+        compressed_audio = self.compress_audio()
+
+        # Pack audio metadata
+        metadata = struct.pack('>IIf', self.sample_rate, self.channels, self.duration)
+
+        payload = (
+            metadata +
+            compressed_audio
+        )
+
+        return BLEMeshMessage(
+            message_id=self.message_id,
+            source_id=self.source_id,
+            destination_id=self.destination_id,
+            payload=payload,
+            timestamp=self.timestamp,
+            message_type='voice'
+        )
+
+    @classmethod
+    def from_mesh_message(cls, message: BLEMeshMessage) -> Optional['VoiceMessage']:
+        """Create from BLE mesh message."""
+        try:
+            if message.message_type != 'voice':
+                return None
+
+            # Unpack metadata
+            metadata_size = 12  # sample_rate (4) + channels (4) + duration (4)
+            if len(message.payload) < metadata_size:
+                return None
+
+            metadata = message.payload[:metadata_size]
+            audio_data = message.payload[metadata_size:]
+
+            sample_rate, channels, duration = struct.unpack('>IIf', metadata)
+
+            return cls(
+                message_id=message.message_id,
+                source_id=message.source_id,
+                destination_id=message.destination_id,
+                audio_data=audio_data,
+                sample_rate=sample_rate,
+                channels=channels,
+                timestamp=message.timestamp,
+                duration=duration
+            )
+        except (struct.error, Exception) as e:
+            logger.error(f"Failed to parse voice message: {e}")
             return None
 
 
@@ -189,7 +299,8 @@ class BLEMeshNode:
             advertising_bytes = encrypted_message.to_bytes()
 
             # Simulate BLE advertising (limit to 31 bytes for BLE spec)
-            if len(advertising_bytes) <= 31:
+            # For voice messages, we'll allow larger packets in simulation
+            if len(advertising_bytes) <= 31 or message.message_type == 'voice':
                 self.advertising_data.append(advertising_bytes)
                 logger.info(f"Started advertising message {message.message_id}")
             else:
@@ -286,7 +397,8 @@ class BLEMeshNode:
                 destination_id=destination_id,
                 payload=message_type.encode('utf-8') + payload,
                 timestamp=time.time(),
-                ttl=64
+                ttl=64,
+                message_type=message_type
             )
 
             await self.start_advertising(message)
@@ -294,6 +406,28 @@ class BLEMeshNode:
 
         except Exception as e:
             logger.error(f"Failed to send message: {e}")
+
+    async def send_voice_message(self, destination_id: str, voice_message: VoiceMessage):
+        """Send voice message through mesh."""
+        try:
+            mesh_message = voice_message.to_mesh_message()
+            await self.start_advertising(mesh_message)
+            logger.info(f"Sent voice message {voice_message.message_id} to {destination_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to send voice message: {e}")
+
+    async def broadcast_voice_message(self, voice_message: VoiceMessage):
+        """Broadcast voice message to all neighbors."""
+        try:
+            mesh_message = voice_message.to_mesh_message()
+            mesh_message.destination_id = "broadcast"
+
+            await self.start_advertising(mesh_message)
+            logger.info(f"Broadcast voice message {voice_message.message_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to broadcast voice message: {e}")
 
     def get_network_stats(self) -> Dict[str, Any]:
         """Get network statistics."""
@@ -330,6 +464,11 @@ class BLEMeshNetwork:
                 self.network_topology[node1_id].append(node2_id)
             if node1_id not in self.network_topology[node2_id]:
                 self.network_topology[node2_id].append(node1_id)
+
+            # Update node neighbors
+            if node1_id in self.nodes and node2_id in self.nodes:
+                self.nodes[node1_id].neighbors[node2_id] = time.time()
+                self.nodes[node2_id].neighbors[node1_id] = time.time()
 
     async def broadcast_message(self, source_id: str, message_type: str, payload: bytes):
         """Broadcast message to all nodes in network."""

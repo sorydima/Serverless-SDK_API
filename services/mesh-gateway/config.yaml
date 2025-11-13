@@ -1,0 +1,56 @@
+# Mesh Gateway Service Configuration
+
+server:
+  port: 8080
+  host: 0.0.0.0
+
+logging:
+  level: info
+  format: json
+
+mesh:
+  discovery:
+    interval_seconds: 5
+    timeout_seconds: 300
+    max_devices: 1000
+
+  routing:
+    algorithm: dijkstra
+    max_hops: 10
+    latency_threshold_ms: 1000
+
+  communication:
+    protocol: websocket
+    encryption: aes-256-gcm
+    retry_attempts: 3
+    retry_delay_ms: 100
+
+database:
+  type: postgresql
+  host: postgres
+  port: 5432
+  database: mesh_gateway
+  user: mesh_user
+  password: ${MESH_DB_PASSWORD}
+
+redis:
+  host: redis
+  port: 6379
+  cluster: true
+  password: ${REDIS_PASSWORD}
+
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+  metrics:
+    interval_seconds: 30
+
+security:
+  tls:
+    enabled: true
+    cert_file: /etc/ssl/certs/mesh-gateway.crt
+    key_file: /etc/ssl/private/mesh-gateway.key
+  authentication:
+    type: jwt
+    secret: ${JWT_SECRET}

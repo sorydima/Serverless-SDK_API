@@ -1,0 +1,91 @@
+name: mesh_app
+description: Mesh Networking App with Quantum UI Design System
+version: 1.0.0+1
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Core Flutter
+  cupertino_icons: ^1.0.2
+
+  # State Management
+  provider: ^6.0.5
+  flutter_riverpod: ^2.3.6
+
+  # Networking & Mesh
+  http: ^1.1.0
+  web_socket_channel: ^2.4.0
+  connectivity_plus: ^4.0.1
+
+  # UI Components
+  flutter_svg: ^2.0.7
+  cached_network_image: ^3.2.3
+  shimmer: ^3.0.0
+  flutter_staggered_animations: ^1.1.1
+
+  # Quantum UI Effects
+  flutter_shaders: ^0.1.2
+  fractal_flutter: ^0.1.0
+
+  # Accessibility
+  talker: ^2.0.0
+  flutter_tts: ^3.6.3
+  speech_to_text: ^6.1.1
+
+  # Storage
+  shared_preferences: ^2.2.2
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Utils
+  intl: ^0.18.1
+  path_provider: ^2.1.1
+  url_launcher: ^6.1.11
+  package_info_plus: ^4.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.6
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/fonts/
+    - assets/shaders/
+    - assets/config/
+
+  fonts:
+    - family: QuantumSans
+      fonts:
+        - asset: assets/fonts/QuantumSans-Regular.ttf
+        - asset: assets/fonts/QuantumSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/QuantumSans-Light.ttf
+          weight: 300
+
+    - family: NeuralDisplay
+      fonts:
+        - asset: assets/fonts/NeuralDisplay-Regular.ttf
+        - asset: assets/fonts/NeuralDisplay-Bold.ttf
+          weight: 700
+
+    - family: MeshIcons
+      fonts:
+        - asset: assets/fonts/MeshIcons.ttf
+
+  shaders:
+    - assets/shaders/quantum_field.frag
+    - assets/shaders/neural_network.frag
+    - assets/shaders/fractal_mesh.frag

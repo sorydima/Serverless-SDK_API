@@ -19,11 +19,19 @@
 #
 #
 
-from twisted.trial import util
+try:
+	from twisted.trial import util
+	from synapse.util.patch_inline_callbacks import do_patch
 
-from synapse.util.patch_inline_callbacks import do_patch
+	# attempt to do the patch before we load any synapse code
+	do_patch()
 
-# attempt to do the patch before we load any synapse code
-do_patch()
+	util.DEFAULT_TIMEOUT_DURATION = 20
+except Exception:
+	# Twisted or synapse patching not available in this environment.
+	# Tests that depend on those frameworks will need the proper deps.
+	# We provide a no-op fallback so individual lightweight tests can run.
+	class _DummyUtil:
+		DEFAULT_TIMEOUT_DURATION = 20
 
-util.DEFAULT_TIMEOUT_DURATION = 20
+	util = _DummyUtil()

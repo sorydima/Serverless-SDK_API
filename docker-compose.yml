@@ -1,0 +1,221 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Cluster
+  postgres-master:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: synapse
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - postgres_master_data:/var/lib/postgresql/data
+      - ./infra/postgres/master-init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres-slave:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: synapse
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_slave_data:/var/lib/postgresql/data
+      - ./infra/postgres/slave-init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    networks:
+      - backend
+    command: >
+      bash -c "
+      until pg_basebackup -h postgres-master -D /var/lib/postgresql/data -U synapse -vP -W; do
+        echo 'Waiting for master to connect...'
+        sleep 1
+      done
+      echo 'host replication synapse 0.0.0.0/0 md5' >> /var/lib/postgresql/data/pg_hba.conf
+      exec postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+      "
+
+  pgbouncer:
+    image: brainsam/pgbouncer:latest
+    environment:
+      DB_HOST: postgres-master
+      DB_PORT: 5432
+      DB_USER: synapse
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 20
+    ports:
+      - "6432:5432"
+    depends_on:
+      - postgres-master
+    networks:
+      - backend
+
+  # Redis Cluster
+  redis-1:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    ports:
+      - "7001:6379"
+    volumes:
+      - redis_1_data:/data
+    networks:
+      - backend
+
+  redis-2:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    ports:
+      - "7002:6379"
+    volumes:
+      - redis_2_data:/data
+    networks:
+      - backend
+
+  redis-3:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    ports:
+      - "7003:6379"
+    volumes:
+      - redis_3_data:/data
+    networks:
+      - backend
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - backend
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - backend
+    depends_on:
+      - prometheus
+
+  # Microservices
+  mesh-gateway:
+    build:
+      context: ./services/mesh-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./services/mesh-gateway/config.yaml:/app/config.yaml
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+    networks:
+      - backend
+      - mesh
+    depends_on:
+      - redis-1
+      - redis-2
+      - redis-3
+
+  ai-core:
+    build:
+      context: ./services/ai-core
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./services/ai-core/config.yaml:/app/config.yaml
+      - ai_models:/app/models
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+    networks:
+      - backend
+    depends_on:
+      - redis-1
+      - redis-2
+      - redis-3
+
+  storage:
+    build:
+      context: ./services/storage
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./services/storage/config.yaml:/app/config.yaml
+      - storage_data:/app/storage
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+      - STORAGE_DB_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - backend
+    depends_on:
+      - postgres-master
+      - redis-1
+      - redis-2
+      - redis-3
+
+  # Synapse (existing backend)
+  synapse:
+    build:
+      context: ./backend/synapse
+      dockerfile: Dockerfile
+    ports:
+      - "8008:8008"
+    volumes:
+      - synapse_data:/data
+      - ./backend/synapse/homeserver.yaml:/data/homeserver.yaml
+    environment:
+      - SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
+    networks:
+      - backend
+    depends_on:
+      - postgres-master
+
+volumes:
+  postgres_master_data:
+  postgres_slave_data:
+  redis_1_data:
+  redis_2_data:
+  redis_3_data:
+  prometheus_data:
+  grafana_data:
+  ai_models:
+  storage_data:
+  synapse_data:
+
+networks:
+  backend:
+    driver: bridge
+  mesh:
+    driver: bridge

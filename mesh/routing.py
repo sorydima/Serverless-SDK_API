@@ -9,6 +9,8 @@ import asyncio
 from typing import Dict, List, Optional, Set, Tuple
 import logging
 import time
+import json
+import hashlib
 
 # Optional quantum optimizer import
 try:
@@ -180,6 +182,43 @@ class MeshRouter:
             'max_hops_configured': self.max_hops,
             'last_update_seconds_ago': time.time() - self.last_update
         }
+
+    async def broadcast_message(self, message: Dict[str, Any]) -> bool:
+        """Broadcast a message on the mesh.
+
+        This method is a lightweight hook used by bridges to forward
+        messages to other systems. It will attempt to record a message
+        hash to a registered blockchain bridge (polkadot) if available.
+        """
+        try:
+            # Compute deterministic id for the message
+            payload = json.dumps(message, sort_keys=True)
+            message_id = hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+            # Try to record via Polkadot bridge if registered
+            try:
+                from ..ai.blockchain.registry import get_bridge
+                polka = get_bridge('polkadot')
+                if polka is not None:
+                    # record_message_hash should be async-compatible
+                    if hasattr(polka, 'record_message_hash'):
+                        try:
+                            await polka.record_message_hash(message_id, 'broadcast', message, metadata={'router': self.device_id})
+                        except TypeError:
+                            # Some adapters may have non-async implementation
+                            polka.record_message_hash(message_id, 'broadcast', message, metadata={'router': self.device_id})
+            except Exception:
+                # Don't fail broadcast on bridge errors
+                pass
+
+            # In a real implementation this would forward to neighbors/nodes.
+            # For now, just log and return True.
+            logger.info(f"Broadcasted message {message_id} from {self.device_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to broadcast message: {e}")
+            return False
 
 
 class AODVRouting(MeshRouter):

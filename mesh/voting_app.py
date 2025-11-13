@@ -15,6 +15,17 @@ from dataclasses import dataclass
 from enum import Enum
 import threading
 
+# Blockchain integration imports
+try:
+    from ..ai.blockchain.smart_contracts.deploy_vote_validator import VoteValidatorDeployer
+    from ..ai.blockchain.polkadot.bridge import PolkadotBridge, MeshMessageRecorder
+    _HAS_BLOCKCHAIN = True
+except ImportError:
+    _HAS_BLOCKCHAIN = False
+    VoteValidatorDeployer = None
+    PolkadotBridge = None
+    MeshMessageRecorder = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -220,6 +231,7 @@ class MeshVotingApp:
     Offline Voting Application for Mesh Networks.
 
     Implements decentralized voting with majority-agreement consensus.
+    Supports blockchain integration for vote validation and recording.
     """
 
     def __init__(self, node_id: str, mesh_network):
@@ -229,6 +241,16 @@ class MeshVotingApp:
         self.vote_handlers: Dict[str, Callable] = {}
         self.session_handlers: Dict[str, Callable] = {}
 
+        # Blockchain integration
+        self.blockchain_enabled = _HAS_BLOCKCHAIN
+        self.polkadot_bridge = None
+        self.message_recorder = None
+        self.smart_contract_deployer = None
+
+        # Initialize blockchain components if available
+        if self.blockchain_enabled:
+            self._initialize_blockchain()
+
         # Message types for mesh communication
         self.MESSAGE_VOTE_REQUEST = "vote_request"
         self.MESSAGE_VOTE_CAST = "vote_cast"
@@ -237,6 +259,31 @@ class MeshVotingApp:
 
         # Register message handlers
         self._register_message_handlers()
+
+    def _initialize_blockchain(self):
+        """Initialize blockchain components for vote validation."""
+        try:
+            # Initialize Polkadot bridge for cross-chain communication
+            self.polkadot_bridge = PolkadotBridge(
+                node_id=self.node_id,
+                mesh_network=self.mesh_network
+            )
+
+            # Initialize message recorder for audit trails
+            self.message_recorder = MeshMessageRecorder(
+                bridge=self.polkadot_bridge,
+                node_id=self.node_id
+            )
+
+            # Initialize smart contract deployer for vote validation
+            # This would be configured with actual network credentials
+            self.smart_contract_deployer = None  # Initialize when needed
+
+            logger.info("Blockchain integration initialized for voting app")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize blockchain components: {e}")
+            self.blockchain_enabled = False
 
     def _register_message_handlers(self):
         """Register handlers for mesh network messages."""
@@ -295,12 +342,15 @@ class MeshVotingApp:
             return False
 
         # Create vote
+        timestamp = time.time()
         vote = Vote(
             voter_id=self.node_id,
             option_id=option_id,
-            timestamp=time.time(),
-            signature=vote.calculate_hash()  # Simple hash as signature
+            timestamp=timestamp,
+            signature=""  # Will set after creation
         )
+        # Calculate signature after vote creation
+        vote.signature = vote.calculate_hash()
 
         # Add vote locally
         if not session.add_vote(vote):
@@ -308,6 +358,22 @@ class MeshVotingApp:
 
         # Broadcast vote to network
         await self._broadcast_vote_cast(session_id, vote)
+
+        # Record vote on blockchain if enabled
+        if self.blockchain_enabled and self.message_recorder:
+            try:
+                await self.message_recorder.record_vote(
+                    session_id=session_id,
+                    vote=vote,
+                    session_metadata={
+                        'title': session.title,
+                        'creator_id': session.creator_id,
+                        'total_options': len(session.options)
+                    }
+                )
+                logger.info(f"Vote recorded on blockchain for session {session_id}")
+            except Exception as e:
+                logger.error(f"Failed to record vote on blockchain: {e}")
 
         # Check if consensus reached
         if session.get_consensus_result() != ConsensusResult.UNDECIDED:

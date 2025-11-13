@@ -1,0 +1,33 @@
+name: quantum_simulator
+description: Flutter plugin for quantum network simulation
+version: 1.0.0
+homepage:
+
+environment:
+  sdk: '>=2.18.0 <4.0.0'
+  flutter: ">=2.5.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.rechain.quantum_simulator
+        pluginClass: QuantumSimulatorPlugin
+      ios:
+        pluginClass: QuantumSimulatorPlugin
+      linux:
+        pluginClass: QuantumSimulatorPlugin
+      macos:
+        pluginClass: QuantumSimulatorPlugin
+      windows:
+        pluginClass: QuantumSimulatorPlugin

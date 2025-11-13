@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11, 3.10]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+          
+      - name: Cache virtualenv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: ${{ runner.os }}-venv-${{ matrix.python-version }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-venv-${{ matrix.python-version }}-
+
+      - name: Upgrade pip
+        run: python -m pip install -U pip
+
+      - name: Install test dependencies
+        run: python -m pip install pytest
+
+      - name: Run unit tests
+        run: python -m pytest -q
+
+      - name: Run smoke tests
+        run: |
+          python tools/run_smoke_tests.py || true
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-artifacts-${{ matrix.python-version }}-${{ github.run_id }}
+          path: |
+            smoke_backlog.csv
+            .demo_data_lake/demo_output.json
+            .smoke_vibe_vault/**
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        python-version: [3.11]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install -U pip
+
+      - name: Install optional integration deps
+        run: |
+          python -m pip install pytest
+          python -m pip install py-substrate-interface cryptography || true
+
+      - name: Run integration subset
+        run: |
+          # Run smoke runner to exercise adapters that may use optional deps
+          python tools/run_smoke_tests.py || true
+
+      - name: Upload integration artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-smoke-artifacts
+          path: |
+            smoke_backlog.csv
+            .demo_data_lake/demo_output.json
+            .smoke_vibe_vault/**

@@ -1,0 +1,71 @@
+"""Bluetooth LE Mesh scaffold (generated from prompt {prompt_id} - {title})
+
+This is a minimal scaffold demonstrating BLE advertising-based discovery and
+message relay. It's intended as a starting point and must be adapted per platform
+and BLE library (e.g., bleak, aioble, or platform-specific APIs).
+"""
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass, field
+from typing import Callable, Dict, Any
+
+
+@dataclass
+class BLEMeshService:
+    """Simple BLE Mesh service scaffold.
+
+    Methods:
+    - start(): start advertising and scanning
+    - stop(): stop services
+    - send_message(peer_id, payload): send a payload via advertising/scan-response
+    """
+    on_receive: Callable[[str, bytes], None] | None = None
+    running: bool = field(default=False, init=False)
+
+    async def start(self):
+        self.running = True
+        # TODO: integrate with platform BLE stack (scan + advertising)
+        loop = asyncio.get_running_loop()
+        # placeholder: periodic task to simulate discovery
+        self._task = loop.create_task(self._simulate_loop())
+
+    async def stop(self):
+        self.running = False
+        if hasattr(self, '_task'):
+            self._task.cancel()
+            try:
+                await self._task
+            except Exception:
+                pass
+
+    async def _simulate_loop(self):
+        while self.running:
+            # simulate discovered peer
+            await asyncio.sleep(5)
+            if self.on_receive:
+                self.on_receive('peer-simulated', b'hello')
+
+    async def send_message(self, peer_id: str, payload: bytes) -> bool:
+        # Placeholder: perform an advertising packet or GATT write
+        # Return True on 'sent'
+        await asyncio.sleep(0.1)
+        return True
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='BLE Mesh scaffold runner')
+    parser.add_argument('--demo', action='store_true')
+    args = parser.parse_args()
+
+    async def demo():
+        svc = BLEMeshService(on_receive=lambda pid, data: print('recv', pid, data))
+        await svc.start()
+        await asyncio.sleep(2)
+        await svc.send_message('peer', b'ping')
+        await asyncio.sleep(1)
+        await svc.stop()
+
+    if args.demo:
+        asyncio.run(demo())

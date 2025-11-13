@@ -1,0 +1,11 @@
+pytest
+aiohttp
+websockets
+PyYAML
+parameterized
+prometheus_client
+twisted
+immutabledict
+canonicaljson
+pymacaroons
+zope.interface

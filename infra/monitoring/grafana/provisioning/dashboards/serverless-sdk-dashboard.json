@@ -1,0 +1,170 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Serverless SDK API Overview",
+    "tags": ["serverless", "sdk", "api"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=~\"mesh-gateway|ai-core|storage|synapse\"}",
+            "legendFormat": "{{job}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  },
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  }
+                },
+                "type": "value"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Response Time (95th percentile)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Mesh Network Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "mesh_devices_total",
+            "legendFormat": "Total Devices"
+          },
+          {
+            "expr": "mesh_devices_online",
+            "legendFormat": "Online Devices"
+          },
+          {
+            "expr": "mesh_routes_active",
+            "legendFormat": "Active Routes"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "AI Inference Performance",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(ai_inference_requests_total[5m])",
+            "legendFormat": "Inference Requests"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(ai_inference_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile latency"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Storage Operations",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(storage_operations_total[5m])",
+            "legendFormat": "{{operation}}"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Database Connections",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count",
+            "legendFormat": "PostgreSQL Connections"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Redis Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes / redis_memory_max_bytes * 100",
+            "legendFormat": "Redis Memory %"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "System Resources",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(cpu_usage_seconds_total[5m]) * 100",
+            "legendFormat": "CPU Usage %"
+          },
+          {
+            "expr": "memory_usage_bytes / memory_total_bytes * 100",
+            "legendFormat": "Memory Usage %"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m]) * 100",
+            "legendFormat": "{{job}} 5xx Error Rate %"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 0,
+    "links": []
+  }
+}

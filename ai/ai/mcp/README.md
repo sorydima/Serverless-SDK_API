@@ -118,3 +118,9 @@ pytest tests/
 
 ## License
 See main LICENSE file.
+
+## Notes about the repository shim
+This repository contains a minimal MCP shim used for development and unit
+tests (`ai/ai/mcp/client.py` and `ai/ai/mcp/adapter.py`). Those are NOT full
+replacements for a production MCP SDK — they simulate behavior for local
+integration tests and examples.

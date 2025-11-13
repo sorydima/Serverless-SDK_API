@@ -1,0 +1,66 @@
+# Storage Service Configuration
+
+server:
+  port: 8082
+  host: 0.0.0.0
+
+logging:
+  level: info
+  format: json
+
+database:
+  type: postgresql
+  host: postgres
+  port: 5432
+  database: storage_db
+  user: storage_user
+  password: ${STORAGE_DB_PASSWORD}
+  connection_pool_size: 10
+  max_connections: 100
+
+redis:
+  host: redis
+  port: 6379
+  cluster: true
+  password: ${REDIS_PASSWORD}
+  connection_pool_size: 20
+
+file_storage:
+  root_directory: /app/storage
+  max_file_size_mb: 100
+  allowed_content_types:
+    - application/json
+    - application/octet-stream
+    - text/plain
+    - image/jpeg
+    - image/png
+
+cache:
+  default_ttl_seconds: 3600
+  max_memory_mb: 512
+  cleanup_interval_seconds: 300
+
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9092
+  metrics:
+    interval_seconds: 30
+
+security:
+  tls:
+    enabled: true
+    cert_file: /etc/ssl/certs/storage.crt
+    key_file: /etc/ssl/private/storage.key
+  authentication:
+    type: jwt
+    secret: ${JWT_SECRET}
+  rate_limiting:
+    requests_per_minute: 1000
+    burst_limit: 100
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 30
+  s3_bucket: storage-backups

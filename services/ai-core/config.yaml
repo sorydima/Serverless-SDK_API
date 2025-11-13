@@ -1,0 +1,68 @@
+# AI Core Service Configuration
+
+server:
+  port: 8081
+  host: 0.0.0.0
+
+logging:
+  level: info
+  format: json
+
+ai:
+  models:
+    cache_size_mb: 4096
+    max_concurrent_inferences: 10
+    default_model_timeout_ms: 30000
+
+  quantum:
+    simulator_enabled: true
+    max_qubits: 32
+    coherence_time_us: 50.0
+    gate_fidelity: 0.995
+
+  inference:
+    batch_size: 8
+    timeout_ms: 10000
+    retry_attempts: 3
+
+database:
+  type: postgresql
+  host: postgres
+  port: 5432
+  database: ai_core
+  user: ai_user
+  password: ${AI_DB_PASSWORD}
+
+redis:
+  host: redis
+  port: 6379
+  cluster: true
+  password: ${REDIS_PASSWORD}
+
+model_storage:
+  type: s3
+  bucket: ai-models-bucket
+  region: us-east-1
+  access_key: ${AWS_ACCESS_KEY}
+  secret_key: ${AWS_SECRET_KEY}
+
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9091
+  metrics:
+    interval_seconds: 15
+  profiling:
+    enabled: true
+
+security:
+  tls:
+    enabled: true
+    cert_file: /etc/ssl/certs/ai-core.crt
+    key_file: /etc/ssl/private/ai-core.key
+  authentication:
+    type: jwt
+    secret: ${JWT_SECRET}
+  model_access:
+    type: rbac
+    admin_role: ai_admin

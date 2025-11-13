@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+import sys
+from pathlib import Path
+
+# This hook will call the generator to prepend a prompt-based PR/commit description
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        sys.exit(0)
+    commit_msg_file = sys.argv[1]
+    # Optional second arg: prompt id
+    prompt_id = sys.argv[2] if len(sys.argv) > 2 else 'system_refactor'
+    script = Path(__file__).parent / 'generate_pr_description.py'
+    # Execute the generator
+    import subprocess
+    subprocess.run([sys.executable, str(script), commit_msg_file, prompt_id])

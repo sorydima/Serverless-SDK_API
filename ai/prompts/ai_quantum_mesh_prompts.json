@@ -1,0 +1,103 @@
+[
+  {
+    "id": "system_refactor",
+    "title": "System Refactor Prompt",
+    "lang": "ru",
+    "prompt": "Проанализируй весь проект и предложи архитектурное улучшение, сохранив обратную совместимость и расширяемость под mesh-сети и userver backend.",
+    "translations": {
+      "en": "Analyze the entire project and propose architectural improvements while preserving backward compatibility and extensibility for mesh networks and a userver backend."
+    },
+    "notes": "Анализ архитектуры, модуляризация, backward-compatible изменения"
+  },
+  {
+    "id": "platform_builder",
+    "title": "Platform Builder Prompt",
+    "lang": "ru",
+    "prompt": "Сгенерируй папки и файлы для платформ: Android, iOS, macOS, Windows, Linux, Web, AuroraOS, HarmonyOS.",
+    "translations": {
+      "en": "Generate folders and starter files for platforms: Android, iOS, macOS, Windows, Linux, Web, AuroraOS, HarmonyOS."
+    },
+    "notes": "Создать шаблоны проектов, базовые build-скрипты, README"
+  },
+  {
+    "id": "cross_compile",
+    "title": "Cross-Compile Prompt",
+    "lang": "ru",
+    "prompt": "Подготовь кросс-платформенные CMake и Flutter build-скрипты с учётом Yandex Infrastructure SDK и userver.",
+    "translations": {
+      "en": "Prepare cross-platform CMake and Flutter build scripts taking into account the Yandex Infrastructure SDK and userver."
+    },
+    "notes": "Учитывать зависимости userver и Yandex SDK, добавить CI-ориентированные конфигурации"
+  },
+  {
+    "id": "codebase_organizer",
+    "title": "Codebase Organizer Prompt",
+    "lang": "ru",
+    "prompt": "Проведи полную сортировку исходников, документации и заметок по каталогам /core, /frontend, /backend, /infra, /ai, /docs, /mesh.",
+    "translations": {
+      "en": "Perform a complete reorganization of source code, documentation, and notes into directories: /core, /frontend, /backend, /infra, /ai, /docs, /mesh."
+    },
+    "notes": "Инвентарь файлов, миграция, обновление ссылок в документации"
+  },
+  {
+    "id": "quantum_core",
+    "title": "Quantum Core Prompt",
+    "lang": "ru",
+    "prompt": "Добавь в проект модуль ai_quantum_core с возможностью обучения моделей на графах связей устройств.",
+    "translations": {
+      "en": "Add an ai_quantum_core module to the project with capabilities to train models on graphs of device relationships."
+    },
+    "notes": "Описание API, training pipelines, data schema"
+  }
+  ,
+  {
+    "id": "bluetooth_mesh",
+    "title": "Bluetooth Mesh Prompt",
+    "lang": "ru",
+    "prompt": "Реализуй оффлайн-передачу сообщений через Bluetooth LE Advertising + Mesh API с шифрованием.",
+    "translations": {
+      "en": "Implement offline message transfer using Bluetooth LE Advertising + Mesh API with end-to-end encryption."
+    },
+    "notes": "Offline messaging, BLE advertising, Mesh profile, encryption, pairing"
+  },
+  {
+    "id": "wifi_direct_mesh",
+    "title": "Wi-Fi Direct Mesh Prompt",
+    "lang": "ru",
+    "prompt": "Настрой peer-to-peer обмен пакетами через Wi-Fi Direct между устройствами без интернета.",
+    "translations": {
+      "en": "Configure peer-to-peer packet exchange over Wi-Fi Direct between devices without internet connectivity."
+    },
+    "notes": "P2P sockets, service discovery, NAT-less routing"
+  },
+  {
+    "id": "multicast_discovery",
+    "title": "Multicast Discovery Prompt",
+    "lang": "ru",
+    "prompt": "Добавь сервис локального обнаружения узлов через UDP multicast и хранение топологии сети.",
+    "translations": {
+      "en": "Add a local node discovery service using UDP multicast and store the network topology locally."
+    },
+    "notes": "UDP multicast, topology cache, TTL and conflict resolution"
+  },
+  {
+    "id": "mesh_voting_app",
+    "title": "Mesh Voting App Prompt",
+    "lang": "ru",
+    "prompt": "Реализуй приложение для оффлайн-голосования между узлами, с консенсусом через majority-agreement.",
+    "translations": {
+      "en": "Implement an offline voting application between nodes with consensus via majority-agreement."
+    },
+    "notes": "Voting protocol, ballot integrity, offline aggregation, majority consensus"
+  },
+  {
+    "id": "mesh_sync_protocol",
+    "title": "Mesh Sync Protocol Prompt",
+    "lang": "ru",
+    "prompt": "Опиши протокол синхронизации данных между узлами после выхода одного из них в онлайн.",
+    "translations": {
+      "en": "Describe a data synchronization protocol between nodes when one comes online (delta sync, conflict resolution, checkpoints)."
+    },
+    "notes": "Delta sync, vector clocks, merge strategies, bandwidth-aware sync"
+  }
+]

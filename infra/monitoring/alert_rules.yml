@@ -1,0 +1,135 @@
+groups:
+  - name: serverless-sdk-alerts
+    rules:
+      # Service Health Alerts
+      - alert: ServiceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 5 minutes."
+
+      # Mesh Gateway Alerts
+      - alert: HighMeshLatency
+        expr: histogram_quantile(0.95, rate(mesh_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High mesh request latency"
+          description: "95th percentile of mesh request latency is above 1 second."
+
+      - alert: MeshDeviceOffline
+        expr: mesh_devices_online < mesh_devices_total * 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Many mesh devices offline"
+          description: "More than 20% of mesh devices are offline."
+
+      # AI Core Alerts
+      - alert: HighInferenceLatency
+        expr: histogram_quantile(0.95, rate(ai_inference_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High AI inference latency"
+          description: "95th percentile of AI inference latency is above 5 seconds."
+
+      - alert: ModelLoadFailure
+        expr: increase(ai_model_load_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AI model load failure"
+          description: "Failed to load AI model in the last 5 minutes."
+
+      # Storage Alerts
+      - alert: HighStorageLatency
+        expr: histogram_quantile(0.95, rate(storage_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High storage request latency"
+          description: "95th percentile of storage request latency is above 2 seconds."
+
+      - alert: DatabaseConnectionError
+        expr: storage_database_connections_active / storage_database_connections_max > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection usage"
+          description: "Database connection pool usage is above 90%."
+
+      # PostgreSQL Alerts
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL service is not responding."
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High PostgreSQL connections"
+          description: "PostgreSQL has more than 100 active connections."
+
+      # Redis Alerts
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis service is not responding."
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is above 90%."
+
+      # System Resource Alerts
+      - alert: HighCPUUsage
+        expr: rate(cpu_usage_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80% for more than 10 minutes."
+
+      - alert: HighMemoryUsage
+        expr: memory_usage_bytes / memory_total_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90%."
+
+      - alert: LowDiskSpace
+        expr: disk_free_bytes / disk_total_bytes < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space"
+          description: "Available disk space is below 10%."

@@ -1,0 +1,17 @@
+[
+  {
+    "type": "traffic",
+    "value": 12,
+    "ingested_at": "2025-11-12T12:25:46.431212"
+  },
+  {
+    "type": "traffic",
+    "value": 7,
+    "ingested_at": "2025-11-12T12:25:46.431248"
+  },
+  {
+    "type": "environment",
+    "value": 3,
+    "ingested_at": "2025-11-12T12:25:46.431253"
+  }
+]

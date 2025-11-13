@@ -1,0 +1,68 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+scrape_configs:
+  # Mesh Gateway Service
+  - job_name: 'mesh-gateway'
+    static_configs:
+      - targets: ['mesh-gateway:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  # AI Core Service
+  - job_name: 'ai-core'
+    static_configs:
+      - targets: ['ai-core:8081']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  # Storage Service
+  - job_name: 'storage'
+    static_configs:
+      - targets: ['storage:8082']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  # Synapse Homeserver
+  - job_name: 'synapse'
+    static_configs:
+      - targets: ['synapse:8008']
+    metrics_path: '/_synapse/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-master:5432']
+    scrape_interval: 30s
+
+  # Redis Cluster
+  - job_name: 'redis'
+    static_configs:
+      - targets:
+          - 'redis-1:6379'
+          - 'redis-2:6379'
+          - 'redis-3:6379'
+    scrape_interval: 30s
+
+  # Node Exporter (if running on host)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+    scrape_interval: 30s
+
+  # Docker containers
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['host.docker.internal:9323']
+    scrape_interval: 30s
