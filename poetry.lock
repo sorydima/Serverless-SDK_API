@@ -1590,14 +1590,14 @@ dev = ["jinja2"]
 
 [[package]]
 name = "phonenumbers"
-version = "9.0.19"
+version = "9.0.21"
 description = "Python version of Google's common library for parsing, formatting, storing and validating international phone numbers."
 optional = false
-python-versions = "*"
+python-versions = ">=2.5"
 groups = ["main"]
 files = [
-    {file = "phonenumbers-9.0.19-py2.py3-none-any.whl", hash = "sha256:004abdfe2010518c2383f148515664a742e8a5d5540e07c049735c139d7e8b09"},
-    {file = "phonenumbers-9.0.19.tar.gz", hash = "sha256:e0674e31554362f4d95383558f7aefde738ef2e7bf96d28a10afd3e87d63a65c"},
+    {file = "phonenumbers-9.0.21-py2.py3-none-any.whl", hash = "sha256:3a0f717fddf901a5a424f47c43fb72722cb45bd25ee87331987b00eafe6855bf"},
+    {file = "phonenumbers-9.0.21.tar.gz", hash = "sha256:df4145cba0a8b3ee9c425d5d9b5dbe1b4fceccc68b030ac549ea13c95592b602"},
 ]
 
 [[package]]
