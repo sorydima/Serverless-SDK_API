@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache pip
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
@@ -31,7 +31,7 @@ jobs:
             ${{ runner.os }}-pip-${{ matrix.python-version }}-
           
       - name: Cache virtualenv
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .venv
           key: ${{ runner.os }}-venv-${{ matrix.python-version }}-${{ github.run_id }}
@@ -52,7 +52,7 @@ jobs:
           python tools/run_smoke_tests.py || true
       - name: Upload smoke artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: smoke-artifacts-${{ matrix.python-version }}-${{ github.run_id }}
           path: |
@@ -91,7 +91,7 @@ jobs:
 
       - name: Upload integration artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: integration-smoke-artifacts
           path: |
